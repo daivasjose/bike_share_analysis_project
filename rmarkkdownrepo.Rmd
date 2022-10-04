@@ -1,0 +1,899 @@
+---
+title: "Cyclistic_Report"
+author: "Daivas"
+date: "`r Sys.Date()`"
+output: html_document
+---  
+
+
+
+# Portfolio project: Bike Share Analysis
+##### Data: https://divvy-tripdata.s3.amazonaws.com/index.html  
+  
+  
+
+##### Title: Bike Share analysis
+##### Author: Daivas J Allencherry
+##### Date: 01/10/2022  
+  
+    
+    
+
+This project is part of Google Data Analytics Certificate. This is my comprehensive analysis about a fictional bike sharing company. Analysis is done through six major steps: Ask, Prepare, Process, Analyze, Share, and Act.  
+  
+  
+
+## Step 1: ASK  
+
+__Name:__ Daivas J Allencherry  
+  
+  
+__Role:__ Junior Data Analyst  
+  
+  
+__Company:__ Cyclistic Pvt Ltd, Chicago  
+  
+  
+__Goal:__ To improve number of annual memberships. To design a marketing strategy to convert casual riders into annual members.  
+  
+  
+__Business Task:__ Learn how casual riders and annual members use Cyclistic bikes differently.  
+  
+  
+__Capacity:__ 5,800 bicycles & 600 docking stations. 8% of riders use the assistive options. 30% use them to commute to work each day. Cyclistic users are more likely to ride for leisure.  
+  
+  
+__Manager:__ Lily Moreno | Director of Marketing | Development of campaigns and initiatives  
+  
+  
+__Cyclistic:__ Since 2016, a bike sharing service with 5,824 bicycles, geo-tracked and locked into a network of 692 stations across Chicago. Bikes can be unlocked from one station and returned to any other station in the system anytime. There are single-ride passes, full-day passes, and annual memberships. Customers who purchase single-ride or full-day passes are referred to as casual riders. Customers who purchase annual memberships are Cyclistic members.  
+
+Cyclistic’s finance analysts have concluded that annual members are much more profitable than casual riders. Although the pricing flexibility helps Cyclistic attract more customers, Moreno believes that maximizing the number of annual members will be key to future growth. Rather than creating a marketing campaign that targets all-new customers, Moreno believes there is a very good chance to convert casual riders into members. She notes that casual riders are already aware of the Cyclistic program and have chosen Cyclistic for their mobility needs.  
+
+  
+    
+    
+
+## Step 2: PREPARE  
+
+
+__Data Source:__ https://divvy-tripdata.s3.amazonaws.com/index.html  
+  
+  
+__Public Dataset:__ divvy-tripdata - Data is provided by Motivate International Inc. under this license agreement. Data was collected through a unique ID given to the customers to collect data regarding the bike share service. We are using data from 2020 April to 2021 March, stored as 12 separate ZIP files each for a month in between these time periods.  
+  
+  
+__Limitations:__ Third party data, not as reliable as first or second party data. Pricing attributes, individual names are not available to calculate the frequency of individual use.  
+  
+  
+__ROCCC Check:__ Data is reliable, less original, comprehensive, current and not well cited.  
+  
+  
+__Tools:__ I have tried to work with Excel at first. Files are large in size, so I shifted to R Studio. Bind them using rbind() function.  
+  
+  
+  
+  
+Load necessary libraries.  
+
+```{r}
+library("lubridate")
+library("janitor")
+library("tidyverse")
+library("dplyr")
+library("readr")
+library("tidyr")
+library("ggplot2")
+library("stringr") 
+library("skimr")
+library("scales")
+library("data.table")
+library("plyr")
+library("viridis")
+```
+  
+  
+Set up a file path where source files are saved.  
+
+```{r}
+setwd("C:/Users/admin/Documents/bikeshare")
+getwd()
+```
+    
+    
+  
+Import files into 12 month name variables.  
+
+```{r}
+apr <- read.csv("202004-divvy-tripdata.csv")
+may <- read.csv("202005-divvy-tripdata.csv")
+jun <- read.csv("202006-divvy-tripdata.csv")
+jul <- read.csv("202007-divvy-tripdata.csv")
+aug <- read.csv("202008-divvy-tripdata.csv")
+sept <- read.csv("202009-divvy-tripdata.csv")
+oct <- read.csv("202010-divvy-tripdata.csv")
+nov <- read.csv("202011-divvy-tripdata.csv")
+dec <- read.csv("202012-divvy-tripdata.csv")
+jan <- read.csv("202101-divvy-tripdata.csv")
+feb <- read.csv("202102-divvy-tripdata.csv")
+mar <- read.csv("202103-divvy-tripdata.csv")
+```
+  
+    
+    
+
+Join these files together to form the main dataset using rbind.  
+  
+```{r}
+trips <- rbind(apr,may,jun,jul,aug,sept,oct,nov,dec,jan,feb,mar)
+
+```
+  
+    
+    
+Let's take a look at the data.  
+
+```{r}
+View(trips)
+```
+  
+    
+    
+
+Inspect the dataset and look for columns and datatypes that needs to be changed. Look for null values, NA values, new columns to be made if necessary, etc.  
+
+  
+  
+    
+
+## Step 3: PROCESS  
+  
+  
+Data will be transformed to a clean and ready-to-analyze format in this part. I tried doing this with Excel at first and SQL at first. It was smooth at first, but time-consuming to do each file one by one and then while removing useless columns, it got stuck. Same thing happened with SQL. So I decided to shift to R Studio.  
+
+  
+    
+    
+Let's start the cleaning process. Remove empty columns and rows.  
+
+```{r}
+trips <- remove_empty(trips,which = c("cols"))
+trips <- remove_empty(trips,which = c("rows"))
+
+```
+  
+    
+      
+      
+
+Inspect the data set, find the datatypes, categories, nature of data.  
+
+```{r}
+glimpse(trips)
+colnames(trips)
+head(trips)
+str(trips)
+
+```
+  
+    
+      
+      
+
+Figure out what needs to be fixed. Make few necessary change to column names for better understanding.  
+
+```{r}
+colnames(trips)[13] <- "user"
+colnames(trips)[2] <- "bike"
+colnames(trips)[3] <- "start_time"
+colnames(trips)[4] <- "end_time"
+colnames(trips)[5] <- "start_station"
+colnames(trips)[7] <- "end_station"
+```
+  
+    
+      
+      
+
+Before starting to fix datatypes, it is good to remove unwanted variables. It improves the performance of the system.  
+
+```{r}
+remove(apr, may, jun, jul, aug, sept, oct, nov, dec, jan, feb, mar)
+
+```
+  
+    
+      
+      
+
+Let’s fix few datatypes first. Timestamps are a necessary part of any analysis. It is necessary to change them into a readable format for further analysis.  
+
+```{r}
+trips = trips %>% 
+     mutate(
+         start_time = ymd_hms(as_datetime(start_time)),
+         end_time = ymd_hms(as_datetime(end_time))
+       )
+
+```
+  
+    
+      
+      
+
+Change the datatype of bike and user columns to factor.  
+
+```{r}
+trips = trips %>%
+mutate(
+    bike = as_factor(bike),
+    user = as_factor(user)
+  )
+
+```
+  
+    
+      
+      
+Let's take a quick look at how it is working.  
+
+```{r}
+glimpse(trips)
+
+```
+  
+    
+      
+      
+
+Let's add new columns. It is time to add few extra columns that can be extremely useful for the analysis process. These new columns can be derived from the datetime attributes.  
+
+```{r}
+trips_1 = trips %>% 
+  mutate(
+    hours = hour(start_time),
+    weekday = lubridate::wday(start_time, label = T, abbr = F),
+    month = lubridate::month(start_time, label = T, abbr =F)
+  )
+
+```
+  
+    
+      
+      
+
+Find trips duration by subtracting started_at from ended_at.  
+
+```{r}
+trips_1 = trips_1 %>% 
+  mutate(
+    trip_time = difftime(end_time, start_time, units = "mins")
+  )
+
+```
+  
+    
+      
+      
+
+Inspect through the data. Look for what else needs to be changed.  
+
+```{r}
+glimpse(trips_1)
+colnames(trips_1)
+head(trips_1)
+colSums(is.na(trips_1))
+```
+  
+    
+      
+      
+Let's remove variable 'trips' for better memory management and speed.  
+
+```{r}
+remove(trips)
+```
+  
+    
+      
+      
+Remove rows with duplicate values  
+
+```{r}
+trips_1 <- distinct(trips_1)
+
+```
+  
+    
+      
+      
+
+Take into account only those trips with a duration greater than 1 minute and less than 24 hours. To do that, we need to use filter function.  
+  
+```{r}
+trips_2 = trips_1 %>% 
+  filter(between(trip_time, 1, 1440))
+
+```
+  
+    
+      
+      
+
+Check whether the changes are made properly. Inspect again the data set clearly from any error.  
+
+```{r}
+glimpse(trips_2)
+max(trips_2$trip_time)
+min(trips_2$trip_time)
+
+```
+  
+    
+      
+      
+Check sum of NA in each column.  
+
+```{r}
+colSums(is.na(trips_2))
+
+```
+  
+    
+      
+      
+
+## Step 4: ANALYZE  
+
+
+Take the summary of the cleaned data in hand.  
+
+```{r}
+summary(trips_2)
+
+```
+  
+    
+      
+      
+
+Find the summary using the function skim_without_charts() for a final check up. 
+Find some conclusive numbers.  
+
+```{r}
+skim_without_charts(trips_2)
+
+```
+  
+    
+      
+      
+
+Find some essential statistical numbers.  
+
+```{r}
+mean(trips_2$trip_time)
+median(trips_2$trip_time)
+
+```
+  
+    
+      
+      
+Compare member and casual users wrt. mean of trip_time.  
+
+```{r}
+aggregate(trips_2$trip_time ~ trips_2$user, FUN = mean)
+
+```
+  
+    
+      
+      
+Create a new table for further calculations.  
+
+```{r}
+analyse_table <- trips_2 %>% 
+  select (ride_id,bike,start_station,end_station,user,trip_time,hours,weekday,month)
+
+```
+  
+    
+      
+      
+
+Take a look at the data  
+
+```{r}
+glimpse(analyse_table)
+colnames(analyse_table)
+
+```
+  
+    
+      
+      
+Let's remove few parent tables for better performance.  
+
+```{r}
+remove(trips_1)
+remove(trips_2)
+
+```
+  
+    
+      
+      
+
+## Step 5: SHARE  
+
+###Create visuals using ggplot2.  
+  
+    
+      
+      
+
+Define variables needed to create a visualization   
+
+__RIDE DURING HOURS OF A DAY__  
+
+```{r}
+ride_hours = analyse_table %>% 
+  group_by(user, hours) %>% 
+  dplyr::summarise(no_of_rides = n(),
+    avg_trip = mean(trip_time),
+    total_trip = sum(trip_time)
+  )
+```
+  
+    
+      
+      
+
+#### Hour of the Day  X  Number of Trips  X  User  
+  
+  
+```{r}
+ride_hours %>% 
+  ggplot(aes(hours, no_of_rides, fill = user))+ 
+  geom_col(position = "dodge")+ 
+  scale_y_continuous()+ 
+  labs(
+    title = "Number of Trips per Hour",
+    subtitle = "Number of trips for every hour and by user",
+    caption = "Figure 1",
+    x = "hour of the day",
+    y = "number of rides",
+  )
+
+```
+  
+    
+      
+        
+        
+__Observation:__ Members take more rides than casual riders during 10AM to 6PM; probably office time.  
+  
+  
+
+#### Hour of the Day  X  Average Trip time  X  User  
+  
+  
+
+```{r}
+ride_hours %>% 
+  ggplot(aes(hours, avg_trip, fill = user))+ 
+  geom_col(position = "dodge")+ 
+  scale_y_continuous()+ 
+  labs(
+    title = "Average trips per Hour",
+    subtitle = "Average trip time for every hour and by user",
+    caption = "Figure 2",
+    x = "hour of the day",
+    y = "avg time of rides",
+  )
+
+```
+  
+    
+      
+        
+__Observation:__ A casual rider on average spent more time riding each day than the one with a subscription.  
+  
+  
+
+#### Hour of the Day  X  Total Trip time  X  User  
+  
+  
+
+```{r}
+ride_hours %>% 
+  ggplot(aes(hours, total_trip, fill = user))+ 
+  geom_col(position = "dodge")+ 
+  scale_y_continuous()+
+  labs(
+    title = "Total Trip Time per Hour",
+    subtitle = "Sum of trip time for every hour and by user",
+    caption = "Figure 3",
+    x = "hour of the day",
+    y = "total time of rides",
+  )
+
+```
+  
+    
+        
+        
+__Observation:__ When it comes to time, casual riders spent more time cycling each day. Mostly during the afternoon, evening time.  
+        
+          
+            
+              
+              
+
+
+### RIDE DURING EACH DAY OF A WEEK  
+  
+  
+
+Define variables needed to create visualizations  
+  
+  
+```{r}
+ride_week = analyse_table %>% 
+  group_by(user, weekday) %>% 
+  dplyr::summarise(no_of_rides = n(),
+            avg_trip = mean(trip_time),
+            total_trip = sum(trip_time)
+            )
+
+```
+  
+    
+      
+        
+        
+
+#### Day of a Week  X  Number of Rides  X  User  
+  
+  
+
+```{r}
+ride_week %>% 
+  ggplot(aes(weekday, no_of_rides, fill=user)) + 
+  geom_col(position="dodge") + 
+  scale_y_continuous(labels=comma) + 
+  labs(
+    title = "No. of Rides by Days of a Week",
+    subtitle = "Number of rides on each weekday by users", 
+    caption = "Figure 4", 
+    x = "Days of a Week",
+    y = "Number of Rides"
+  )
+
+```
+  
+    
+      
+        
+__Observation:__ More Casual riders ride in the weekends than on weekdays.  
+  
+  
+
+#### Day of a Week  X  Average Trip Time  X  User  
+  
+  
+
+```{r}
+ride_week %>% 
+  ggplot(aes(weekday,avg_trip,fill=user)) + 
+  geom_col(position = "dodge") + 
+  scale_y_continuous(labels=comma) + 
+  labs(
+    title = "Average Trip Time by Day of a Week",
+    subtitle = "Average trip time for each day of a week by user",
+    caption = "Figure 5",
+    x = "Days of a Week",
+    y = "Average Trip Time"
+  )
+
+```
+  
+    
+      
+        
+          
+__Observation:__ Casual riders spent more time on average riding over the week than members. More so during weekends.  
+  
+    
+      
+      
+
+#### Day of a Week  X  Total Trip Time  X  User  
+
+
+```{r}
+ride_week %>% 
+  ggplot(aes(weekday,total_trip,fill=user)) + 
+  geom_col(position = "dodge") + 
+  scale_y_continuous(labels=comma) + 
+  labs(
+    title = "Total Trip Time by Day of a Week",
+    subtitle = "Total trip time for each day of a week by user",
+    caption = "Figure 6",
+    x = "Days of a Week",
+    y = "Total Trip Time"
+  )
+
+```
+  
+    
+      
+        
+          
+__Observation:__ Over the week, apart from taking more time to ride, casual riders spent a considerably good amount of time cycling.  
+  
+    
+    
+
+### RIDE DURING EACH MONTH OF A YEAR  
+  
+  
+
+Define variables needed to create visualizations  
+  
+  
+
+```{r}
+ride_month = analyse_table %>% 
+  group_by(user, month) %>% 
+  dplyr::summarise(no_of_rides = n(),
+            avg_trip = mean(trip_time),
+            total_trip = sum(trip_time)
+  )
+
+```
+  
+    
+      
+        
+        
+
+#### Number of Rides  X  Month of a Year  X  User  
+  
+  
+
+```{r}
+ride_month %>% 
+  ggplot(aes(month, no_of_rides, fill=user)) + 
+  geom_col(position="dodge") + 
+  scale_y_continuous(labels=comma) + 
+  labs(
+    title = "No. of Rides by Month of the Year",
+    subtitle = "Number of rides on each month by users", 
+    caption = "Figure 7", 
+    x = "Month of the Year",
+    y = "Number of Rides"
+  )
+
+```
+  
+    
+      
+        
+          
+__Observation:__ Each month, most of the rides are taken by members. There is considerable interest in cycling during the months of July, August, and September. It's summertime.  
+  
+    
+      
+      
+
+#### Average Trip Time  X  Month of a Year  X  User  
+  
+  
+
+```{r}
+ride_month %>% 
+  ggplot(aes(month, avg_trip, fill=user)) + 
+  geom_col(position = "dodge") + 
+  scale_y_continuous(labels=comma) + 
+  labs(
+    title = "Average Trip Time by Month of a Year",
+    subtitle = "Average trip time for each month of the year by user",
+    caption = "Figure 8",
+    x = "Month of the Year",
+    y = "Average Trip Time"
+  )
+
+```
+  
+    
+      
+        
+          
+__Observation:__ Casual riders spent more time cycling on an average every year. But that increases during summer months of May and July.  
+  
+  
+
+#### Total Trip Time  X  Month of a Year  X  User  
+  
+  
+
+```{r}
+ride_month %>% 
+  ggplot(aes(month, total_trip, fill=user)) + 
+  geom_col(position = "dodge") + 
+  scale_y_continuous(labels=comma) +
+  labs(
+    title = "Total Trip Time by Month of a Year",
+    subtitle = "Total trip time for each month of a year by user", 
+    caption = "Figure 9",
+    x = "Month of a Year",
+    y = "Total Trip Time"
+  )
+
+```
+  
+    
+      
+        
+          
+__Observation:__ Casual riders spent more time cycling every year. Especially in the month of July and August.  
+  
+    
+    
+
+
+### TYPES OF BIKE USED  
+  
+  
+
+Define variables needed to create visualizations  
+  
+  
+```{r}
+ride_bike = analyse_table %>% 
+  group_by(user, bike) %>% 
+  dplyr::summarise(no_of_rides = n(),
+            avg_trip = mean(trip_time),
+            total_trip = sum(trip_time)
+  )
+
+```
+  
+    
+      
+        
+          
+
+
+#### Number of Trips   X    Bike Type   X    User  
+  
+  
+
+```{r}
+ride_bike %>% 
+  ggplot(aes(bike, no_of_rides, fill = user))+
+  geom_col(position = "dodge")+
+  scale_y_continuous(labels = comma)+
+  labs(
+    title = "Number of Trips per Bike Type and Segregated by User",
+    subtitle = "Number of trips per bike type",
+    caption = "Fig 10",
+    x = "Types of Bikes",
+    y = "Number of Trips"
+  )
+
+```
+  
+    
+      
+        
+          
+__Observation:__ Most of the riders prefer docked bikes over other type of bikes. Most number of bikes used were docked bikes.
+
+
+
+#### Avg Trip Time  X   Bike Type   X   User  
+  
+    
+
+
+```{r}
+ride_bike %>% 
+  ggplot(aes(bike, avg_trip, fill = user))+
+  geom_col(position = "dodge")+
+  scale_y_continuous(labels = comma)+
+  labs(
+    title = "Average Trip Time per Bike Type and Segregated by User",
+    subtitle = "Average trip time per bike type",
+    caption = "Fig 12",
+    x = "Type of Bikes",
+    y = "Avg Trip Time"
+  )
+
+```
+  
+    
+      
+        
+          
+            
+__Observation:__ On an average, riders spent more time riding docked bikes over other type of bikes. Especially casual riders.
+
+#### Total Trip Time  X   Bike Type   X   User  
+  
+  
+
+```{r}
+ride_bike %>% 
+  ggplot(aes(bike, total_trip, fill = user))+
+  geom_col(position = "dodge")+
+  scale_y_continuous(labels = comma)+
+  labs(
+    title = "Total Trip Time per Bike Type and Segregated by User",
+    subtitle = "Total trip time per bike type",
+    caption = "Fig 13",
+    x = "Type of Bikes",
+    y = "Total Trip Time"
+  )
+
+```
+  
+    
+      
+        
+          
+            
+__Observation:__ The amount of time spent on a docked bike is comparably high with respect to other bikes.  
+  
+    
+      
+        
+        
+
+## Step 6: ACT  
+  
+    
+      
+      
+
+### Observations  
+  
+    
+    
+
+* According to the analyzed data, Members take more rides than casual riders during 10AM to 6PM; that's the office time. A casual rider on average spent more time riding each day than the one with a subscription.When it comes to time, casual riders spent more time cycling each day. Mostly during the afternoon, evening time.  
+  
+    
+
+* More Casual riders ride in the weekends than on weekdays. Casual riders spent more time on average riding over the week than members. More so during weekends. Over the week, apart from taking more time to ride, casual riders spent a considerably good amount of time cycling.  
+  
+  
+* Each month, most of the rides are taken by members. There is considerable interest in cycling during the months of July, August, and September. It's summer time. Casual riders spent more time cycling on an average every year. But that increases during summer months of May and July. Casual riders spent more time cycling every year. Especially in the month of July and August.  
+  
+  
+
+* Most of the riders prefer docked bikes over other type of bikes. Most number of bikes used were docked bikes. On an average, riders spent more time riding docked bikes over other type of bikes. Especially casual riders. The amount of time spent on a docked bike is comparably high with respect to other bikes.  
+  
+    
+      
+      
+
+
+### Conclusion  
+  
+  
+
+* The best time to run a marketing campaign would be during the summer months of June, July, August, and September in order to convert casual riders to members.  
+  
+  
+* A price hike for casual rides during weekends may push people to opt for annual membership. A targeted campaign with an offer at the same time could push people to take a membership.  
+  
+  
+* Ads can even specifically target those casual riders who take long rides on afternoons and evenings.  
+  
+  
+* Putting on some restrictions for casual riders who use docked bikes during summer and more benefits for members may encourage casual riders to switch to members.  
+  
+  
